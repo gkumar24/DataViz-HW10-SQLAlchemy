@@ -28,18 +28,19 @@ app = Flask(__name__)
 engine = create_engine("sqlite:///Resources/hawaii.sqlite")
 
 # reflect an existing database into a new model
-Base = automap_base()
 # reflect the tables
+Base = automap_base()
 Base.prepare(engine, reflect=True)
 
 # Save references to each table
 Measurement = Base.classes.measurement
 Station = Base.classes.station
 
-############################################
 ############### Flask Routes ###############
-############################################
 
+###################################################
+###################### Index Route ################
+###################################################
 # index Route
 @app.route("/")
 def welcome():
@@ -59,17 +60,23 @@ def welcome():
 def precipitation():
     # Create our session (link) from Python to the DB
     session = Session(engine)
-
+    
     # Number of years data needed
     years_needed = 1
 
-    # get date range using the function date_range
-    last_date_st, one_year_ago_st = date_range(years_needed)
+        # Get last date measured, and convert it to 
+    last_date_record = last_measured_date()    
+
+    # Calculate the date 1 year ago from the last data point in the database
+    # and convert to date calculated to string, as the data is stored as string
+    last_date = parse(last_date_record) 
+    n_year_ago = last_date.replace(year=last_date.year-years_needed) + dt.timedelta(days=1)
+    n_year_ago_st = n_year_ago.strftime('%Y-%m-%d')
 
     # Perform a query to retrieve the data and precipitation scores
     OneYearPrcpData = session.query(Measurement.date, Measurement.prcp). \
-    filter(Measurement.date>=one_year_ago_st). \
-    filter(Measurement.date<=last_date_st). \
+    filter(Measurement.date>=n_year_ago_st). \
+    filter(Measurement.date<=last_date_record). \
     order_by(Measurement.date).all()    
 
     # close session
@@ -79,8 +86,11 @@ def precipitation():
     prcp_record ={}
     for date, prcp in OneYearPrcpData:
         prcp_record[date] = prcp
-
+    
     return jsonify(prcp_record)
+    
+
+    
 
 # station Route
 @app.route("/api/v1.0/stations")
@@ -110,24 +120,31 @@ def stations():
     
     return jsonify(stations_record)
 
-# Tobs
+# Tobs Reroute
 @app.route("/api/v1.0/tobs")
 def tobs():
+    # Number of years data needed
+    years_needed = 1
+
     # Create our session (link) from Python to the DB
     session = Session(engine)
 
     #get most active station, using fav_station
     most_active_station = fav_station()
 
-    # Number of years data needed
-    years_needed = 1
-    # get date range using the function date_range
-    last_date_st, one_year_ago_st = date_range(years_needed)
+    # Get last date measured, and convert it to 
+    last_date_record = last_measured_date()    
+
+    # Calculate the date 1 year ago from the last data point in the database
+    # and convert to date calculated to string, as the data is stored as string
+    last_date = parse(last_date_record) 
+    n_year_ago = last_date.replace(year=last_date.year-years_needed) + dt.timedelta(days=1)
+    n_year_ago_st = n_year_ago.strftime('%Y-%m-%d')
 
     # Perform a query to retrieve the data and precipitation scores
     OneYearTempData = session.query(Measurement.date, Measurement.tobs). \
-    filter(Measurement.date>=one_year_ago_st). \
-    filter(Measurement.date<=last_date_st). \
+    filter(Measurement.date>=n_year_ago_st). \
+    filter(Measurement.date<=last_date_record). \
     order_by(Measurement.date).all()    
 
     # close session
@@ -143,18 +160,78 @@ def tobs():
 
     return jsonify(mas_dict)
 
+###################################################
+############## Temperature Statistics API #########
+###################################################
+@app.route("/api/v1.0/<start>")
+@app.route("/api/v1.0/<start>/<end>")
+def Tobs_Statistics(start=None, end=None):
+    #Validate the entered Date
+    valueErrorDict = {"Error":"Value Error",
+                "Error Description":"Invalid or unknown string format",
+                "Suggested Format":"YYYY-MM-DD"}
+
+    overflowErrorDict =  {"Error":"OverflowError ",
+                "Error Description":"parsed date exceeds the largest valid date in the system",
+                "Suggested Format":"YYYY-MM-DD"}
+    if start is not None:
+        try:
+            start_dt = parse(start).strftime('%Y-%m-%d')
+        except ValueError:
+            valueErrorDict["Entered Start Date"]=start_date
+            return jsonify(valueErrorDict)
+        except OverflowError:
+            valueErrorDict["Entered Start Date"]=start_date
+            return jsonify(overflowErrorDict)
+        except:
+            return jsonify({"Error":"Unknown"})
+
+    if end is not None:
+        try:
+            end_dt = parse(end).strftime('%Y-%m-%d')
+        except ValueError:
+            valueErrorDict["Entered End Date"]=end_date
+            return jsonify(valueErrorDict)
+        except OverflowError:
+            valueErrorDict["Entered End Date"]=end_date
+            return jsonify(overflowErrorDict)
+        except:
+            return jsonify({"Error":"Unknown"})
+
+    # Get last date measured, and convert it to 
+    last_date_record = last_measured_date()
+    # last_date = parse(last_date_record)
+    
+    if start_dt > last_date_record:
+        dataUnavailDict = {"Exception":"Data unavailable",
+                        "Last Measured Date":last_date_record,
+                        "Suggestion":"Try date earlier than last measured date and end date"
+                        }
+        return jsonify(dataUnavailDict)    
+
+    if end is None:
+        end_dt = last_date_record
+
+    tmin, tavg, tmax = calc_temps(start_dt, end_dt)[0]
+
+    result_dict = { "Start Date":start_dt,
+                    "End Date":end_dt, 
+                    "Minimum Temperature" : tmin, 
+                    "Maximum Temperature" : tmax,
+                    "Average Temperature" : tavg
+    }
+    return jsonify(result_dict)
 
 ###################################################
-####### Last Measured Date, date (n) years ago ######
+############## Last Measured Date##################
 ###################################################
-def date_range(nYearAgo):
-    
+def last_measured_date():    
     """
     Args:
-        nYearAgo (integer): number of years to subtract from last measured date 
+        No Args
     Returns:
-        last_date_st (string): last date measured in %Y-%m-%d
-        n_year_ago_st (string): date n years from last measured date in  %Y-%m-%d  
+        last_date_record (string): last date measured in %Y-%m-%d
+         
     """
     # Create our session (link) from Python to the DB
     session = Session(engine)
@@ -162,19 +239,12 @@ def date_range(nYearAgo):
     last_date_record = session.query(Measurement.date).order_by(Measurement.date.desc()).first()
     # close session
     session.close()
-    # Get last date as date type
-    last_date = parse(last_date_record[0])
-    # Calculate the date 1 year ago from the last data point in the database
-    n_year_ago = last_date.replace(year=last_date.year-nYearAgo) + dt.timedelta(days=1)
-    # convert to date calculated to string, as the data is stored as string
-    last_date_st = last_date.strftime('%Y-%m-%d')
-    n_year_ago_st = n_year_ago.strftime('%Y-%m-%d')
-    
-    date_range = (last_date_st, n_year_ago_st)
+    #Return Value
+    return last_date_record[0]
 
-    return date_range
-
-# Favorite Station / Most Active Station
+###################################################
+### Get Favorite station / most active station ####
+###################################################
 def fav_station():
     """
     Args:
@@ -196,6 +266,32 @@ def fav_station():
     most_active_station = station_byCount[0]
 
     return most_active_station
+
+###################################################
+### Temperature Statistics for a given range ######
+###################################################
+# This function called `calc_temps` will accept start date and end date in the format '%Y-%m-%d' 
+# and return the minimum, average, and maximum temperatures for that range of dates
+def calc_temps(start_date, end_date):
+    """TMIN, TAVG, and TMAX for a list of dates.
+    
+    Args:
+        start_date (string): A date string in the format %Y-%m-%d
+        end_date (string): A date string in the format %Y-%m-%d
+        
+    Returns:
+        TMIN, TAVE, and TMAX
+    """
+    # Create our session (link) from Python to the DB
+    session = Session(engine)
+
+    temp_stats = session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
+        filter(Measurement.date >= start_date).filter(Measurement.date <= end_date).all()
+
+    # close session
+    session.close()
+    #Return Value
+    return temp_stats
 
 if __name__ == "__main__":
     app.run(debug=True)
