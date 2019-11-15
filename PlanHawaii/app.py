@@ -1,6 +1,4 @@
-###################################################
 ############### Dependencies ###############
-###################################################
 # Import Flask and jsonify
 from flask import Flask, jsonify
 
@@ -17,14 +15,11 @@ import pandas as pd
 import datetime as dt
 from dateutil.parser import parse
 
-###################################################
 ############### Create an Flask app ###############
-###################################################
 app = Flask(__name__)
 
-###################################################
 ########### Database Setup, automap base ##########
-###################################################
+
 engine = create_engine("sqlite:///Resources/hawaii.sqlite")
 
 # reflect an existing database into a new model
@@ -37,10 +32,7 @@ Measurement = Base.classes.measurement
 Station = Base.classes.station
 
 ############### Flask Routes ###############
-
-###################################################
 ###################### Index Route ################
-###################################################
 # index Route
 @app.route("/")
 def welcome():
@@ -55,7 +47,7 @@ def welcome():
         f"/api/v1.0/&lt;start&gt;/&lt;end&gt;<br/>"
     )
 
-# precipitation Route
+############### precipitation Route ################
 @app.route("/api/v1.0/precipitation")
 def precipitation():
     # Create our session (link) from Python to the DB
@@ -91,8 +83,7 @@ def precipitation():
     
 
     
-
-# station Route
+############### station Route ################
 @app.route("/api/v1.0/stations")
 def stations():
     # Create our session (link) from Python to the DB
@@ -120,7 +111,7 @@ def stations():
     
     return jsonify(stations_record)
 
-# Tobs Reroute
+############### Temperature Route ################
 @app.route("/api/v1.0/tobs")
 def tobs():
     # Number of years data needed
@@ -160,9 +151,7 @@ def tobs():
 
     return jsonify(mas_dict)
 
-###################################################
-############## Temperature Statistics API #########
-###################################################
+############### Temperature Statistics ################
 @app.route("/api/v1.0/<start>")
 @app.route("/api/v1.0/<start>/<end>")
 def Tobs_Statistics(start=None, end=None):
@@ -222,9 +211,8 @@ def Tobs_Statistics(start=None, end=None):
     }
     return jsonify(result_dict)
 
-###################################################
-############## Last Measured Date##################
-###################################################
+############### Custom Functions ################
+############### Last Measured Dates ################
 def last_measured_date():    
     """
     Args:
@@ -242,9 +230,7 @@ def last_measured_date():
     #Return Value
     return last_date_record[0]
 
-###################################################
 ### Get Favorite station / most active station ####
-###################################################
 def fav_station():
     """
     Args:
@@ -267,9 +253,7 @@ def fav_station():
 
     return most_active_station
 
-###################################################
 ### Temperature Statistics for a given range ######
-###################################################
 # This function called `calc_temps` will accept start date and end date in the format '%Y-%m-%d' 
 # and return the minimum, average, and maximum temperatures for that range of dates
 def calc_temps(start_date, end_date):
