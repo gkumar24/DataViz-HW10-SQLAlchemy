@@ -18,16 +18,16 @@
 * [Climate API](app.py)
 
 ## One Year Precipitation Bar
-![One Year Precipitation Bar](Output\One_Year_Precipitation_Bar.png)
+![One Year Precipitation Bar](Output/One_Year_Precipitation_Bar.png)
 
 ## Temperature Histogram
-![Temperature Histogram](Output\Temperature_Histogram.png)
+![Temperature Histogram](Output/Temperature_Histogram.png)
 
 ## Trip Average Temperature
-![Trip Average Temp](Output\Trip_Average_Temp.png)
+![Trip Average Temp](Output/Trip_Average_Temp.png)
 
 ## Trip Daily Normals
-![Trip Daily Normals](Output\Trip_Daily_Normals.png)
+![Trip Daily Normals](Output/Trip_Daily_Normals.png)
 
 
 ### Thank you 
